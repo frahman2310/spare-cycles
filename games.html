@@ -1,0 +1,790 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Spare Cycles</title>
+<style>
+  /* Layout: lab bench. Brain map instrument on the left, a list of three game
+     instruments on the right; each row reads level meter -> readout -> trend. */
+  :root {
+    --bg: #f4f6f9; --panel: #ffffff; --ink: #141a26; --muted: #5a6477; --line: #dde2ea; --soft: #eef1f6;
+    --primary: #141a26; --on-primary: #ffffff; --accent: #2f6fd6; --good: #17895a; --bad: #c93c3c; --warn: #b97207;
+    --stage: #eef2f7; --dot: #d3dae5; --road: #cbd3df; --target: #17895a;
+    --region: #e3e8f0; --region-line: #aab5c6; --brain: #f8fafc; --sulcus: #c3ccda;
+    --flash: #2f6fd6; --track: #6b5bd2; --flip: #0f8a6a;
+    --font-display: "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --font-body: "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0f1319; --panel: #161b23; --ink: #e6eaf2; --muted: #94a0b4; --line: #262d39; --soft: #1d2430;
+      --primary: #e6eaf2; --on-primary: #0f1319; --accent: #79a8ff; --good: #3fcf8e; --bad: #ff7070; --warn: #f2ae45;
+      --stage: #0b0f15; --dot: #1b2330; --road: #2a3342; --target: #3fcf8e;
+      --region: #222a37; --region-line: #4d596c; --brain: #18202b; --sulcus: #343e4e;
+      --flash: #79a8ff; --track: #a99cf2; --flip: #4fd0a8; color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0f1319; --panel: #161b23; --ink: #e6eaf2; --muted: #94a0b4; --line: #262d39; --soft: #1d2430;
+    --primary: #e6eaf2; --on-primary: #0f1319; --accent: #79a8ff; --good: #3fcf8e; --bad: #ff7070; --warn: #f2ae45;
+    --stage: #0b0f15; --dot: #1b2330; --road: #2a3342; --target: #3fcf8e;
+    --region: #222a37; --region-line: #4d596c; --brain: #18202b; --sulcus: #343e4e;
+    --flash: #79a8ff; --track: #a99cf2; --flip: #4fd0a8; color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 var(--font-body); -webkit-font-smoothing: antialiased; }
+  main { max-width: 900px; margin: 0 auto; padding-block: 14px 20px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; }
+  h1 { font-size: 20px; font-weight: 650; letter-spacing: -0.01em; }
+  h2 { font-size: 16px; font-weight: 600; }
+  .num { font-variant-numeric: tabular-nums; }
+  .eyebrow { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  a { color: var(--accent); }
+  button { font: inherit; font-size: 14px; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 7px 12px; cursor: pointer; transition: border-color .15s, background .15s; }
+  button:hover { border-color: var(--muted); }
+  button:focus-visible, a:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  button.primary { background: var(--primary); border-color: var(--primary); color: var(--on-primary); font-weight: 700; }
+  button.primary:hover { opacity: .9; }
+  button.ghost { background: transparent; border-color: transparent; color: var(--muted); }
+  button.ghost:hover { color: var(--ink); border-color: var(--line); }
+  .small { padding: 4px 10px; font-size: 13px; }
+  kbd { font: 600 12px var(--font-body); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; padding: 1px 6px; background: var(--panel); }
+
+  /* header */
+  .top { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .mark { width: 30px; height: 30px; border-radius: 8px; background: var(--primary); color: var(--on-primary); display: grid; place-items: center; }
+  .tagline { color: var(--muted); font-size: 13px; }
+  .top .right { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+
+  /* hub */
+  .hub { display: grid; grid-template-columns: minmax(0, 320px) minmax(0, 1fr); gap: 14px; align-items: start; }
+  @media (max-width: 720px) { .hub { grid-template-columns: minmax(0, 1fr); } }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; }
+  .map { padding: 14px; display: grid; gap: 10px; }
+  .map-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+  .map svg { width: 100%; height: auto; display: block; }
+  .region { fill: var(--region); stroke: var(--region-line); stroke-width: 1; cursor: pointer; transition: fill .2s, opacity .2s, stroke .2s; }
+  .region.deep { stroke-dasharray: 3 2.5; fill-opacity: .55; }
+  .region.dim { opacity: .3; }
+  .region:hover, .region:focus { stroke: var(--ink); outline: none; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); }
+  .chip i { width: 8px; height: 8px; border-radius: 50%; background: var(--c); }
+  .chip[aria-pressed="true"] { border-color: var(--c); background: color-mix(in srgb, var(--c) 12%, var(--panel)); }
+  .readout-box { border-top: 1px solid var(--line); padding-top: 10px; font-size: 13.5px; min-height: 92px; }
+  .readout-box ul { margin: 6px 0 0; padding: 0; list-style: none; display: grid; gap: 4px; }
+  .readout-box li { display: grid; grid-template-columns: 10px 1fr; gap: 8px; align-items: baseline; }
+  .readout-box li i { width: 8px; height: 8px; border-radius: 50%; background: var(--c); transform: translateY(-1px); }
+  .caption { font-size: 12px; color: var(--muted); margin: 0; }
+
+  .games { overflow: hidden; }
+  .game { --c: var(--flash); padding: 14px 16px; display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: 6px 14px; align-items: center; }
+  .game + .game, .game + .notes + .game { border-top: 1px solid var(--line); }
+  .glyph { width: 44px; height: 44px; border-radius: 11px; display: grid; place-items: center; color: var(--c); background: color-mix(in srgb, var(--c) 13%, var(--panel)); }
+  .glyph svg { width: 28px; height: 28px; }
+  .game-title { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .game-title .lv { font-size: 12.5px; color: var(--muted); }
+  .trains { font-size: 13px; color: var(--muted); }
+  .meter { display: grid; grid-template-columns: repeat(var(--n), 1fr); gap: 3px; margin-top: 7px; max-width: 280px; }
+  .seg { height: 6px; border-radius: 3px; background: var(--soft); overflow: hidden; }
+  .seg i { display: block; height: 100%; background: var(--c); border-radius: 3px; transition: width .6s cubic-bezier(.2,.8,.2,1); }
+  .stat { display: grid; justify-items: end; gap: 3px; }
+  .trend { display: flex; align-items: center; gap: 8px; margin-right: auto; }
+  .readout { font-family: var(--font-display); font-size: 22px; font-weight: 650; line-height: 1; font-variant-numeric: tabular-nums; }
+  .readout small { font-size: 12px; font-weight: 600; color: var(--muted); margin-left: 2px; }
+  .readout.empty { color: var(--muted); }
+  .metric-name { font-size: 12px; color: var(--muted); }
+  .delta { font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .delta.up { color: var(--good); } .delta.down { color: var(--bad); } .delta.flat { color: var(--muted); }
+  .spark { width: 92px; height: 26px; display: block; }
+  .game .actions { grid-column: 2 / -1; display: flex; gap: 8px; align-items: center; justify-content: flex-end; }
+  .game .actions { flex-wrap: wrap; }
+  @media (max-width: 480px) { .trend { flex-basis: 100%; } .stat { grid-column: 2 / -1; justify-items: start; grid-auto-flow: column; align-items: baseline; gap: 8px; } .game { grid-template-columns: 44px minmax(0, 1fr); } }
+
+  /* notes */
+  .notes { padding: 4px 16px 16px 74px; font-size: 13.5px; }
+  @media (max-width: 480px) { .notes { padding-left: 16px; } }
+  .notes p.sum { margin: 0 0 8px; max-width: 62ch; }
+  .notes h3 { font: 700 11px var(--font-body); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 12px 0 4px; }
+  .notes ul { margin: 0; padding-left: 18px; max-width: 62ch; }
+  .notes li { margin: 3px 0; }
+  .notes .src { color: var(--muted); }
+  details.science { margin-top: 14px; font-size: 13.5px; color: var(--muted); }
+  details.science summary { cursor: pointer; font-weight: 700; }
+  details.science ul { padding-left: 18px; max-width: 72ch; }
+  details.science li { margin: 5px 0; }
+
+  /* play */
+  .bar { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
+  .bar .glyph { width: 32px; height: 32px; border-radius: 9px; grid-row: auto; }
+  .bar .glyph svg { width: 20px; height: 20px; }
+  .bar .lv { font-size: 13px; color: var(--muted); }
+  .bar .right { margin-left: auto; display: flex; gap: 6px; }
+  .how { margin: 0 0 10px; color: var(--muted); font-size: 14px; max-width: 80ch; }
+  .how b { color: var(--ink); }
+  .stage { position: relative; width: 100%; max-width: 100%; aspect-ratio: 16 / 9; background: var(--stage); border-radius: 14px; overflow: hidden; touch-action: none; border: 1px solid var(--line); }
+  canvas { display: block; width: 100%; height: 100%; }
+  .stage-wrap { position: relative; }
+  .overlay { position: absolute; inset: 0; display: grid; place-items: center; padding: 16px; background: color-mix(in srgb, var(--stage) 80%, transparent); border-radius: 14px; }
+  @media (max-width: 560px) { .overlay { position: static; padding: 10px 0 0; background: none; } .sheet { width: 100%; } }
+  .sheet { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; width: min(420px, 100%); display: grid; gap: 10px; justify-items: center; text-align: center; }
+  .sheet p { margin: 0; font-size: 14px; }
+  .sheet .meter { width: 100%; max-width: 260px; margin: 0; }
+  .sheet .result { display: flex; align-items: baseline; gap: 10px; }
+  .sheet .actions { display: flex; gap: 8px; }
+  .controls { display: flex; gap: 8px; justify-content: center; margin-top: 10px; flex-wrap: wrap; min-height: 40px; }
+  .controls button { min-width: 72px; min-height: 40px; font-weight: 700; }
+  .stats { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 8px; font-size: 13px; color: var(--muted); justify-content: center; }
+  .stats b { color: var(--ink); font-variant-numeric: tabular-nums; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+  <header class="top">
+    <div class="brand">
+      <span class="mark" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 18 18"><path d="M1 10h3l2-6 3 10 2-7 1.5 3H17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      <div><h1>Spare Cycles</h1><div class="tagline">An attention lab for the minutes your AI is thinking</div></div>
+    </div>
+    <div class="right">
+      <button id="mode-pip" class="small ghost" hidden>Pop out</button>
+      <button id="mode-full" class="small ghost" hidden>Fullscreen</button>
+      <button id="quick" class="primary">Quick round</button>
+    </div>
+  </header>
+
+  <section id="hub">
+    <div class="hub">
+      <div class="panel map">
+        <div class="map-head"><h2>Brain map</h2><span class="eyebrow">Left side view</span></div>
+        <svg viewBox="30 10 280 226" role="img" aria-labelledby="brain-title">
+          <title id="brain-title">Side view of the left hemisphere, front at left, marking regions these tasks engage</title>
+          <path d="M214 170 C220 192 248 204 272 196 C290 190 294 172 284 160 C270 166 246 170 214 170 Z" fill="var(--brain)" stroke="var(--region-line)" stroke-width="1.2"/>
+          <path d="M226 178 C244 186 264 186 282 176 M224 186 C244 194 262 193 278 186" fill="none" stroke="var(--sulcus)" stroke-width="1"/>
+          <path d="M204 176 C203 196 205 214 209 230 L225 230 C222 212 222 194 224 178 Z" fill="var(--brain)" stroke="var(--region-line)" stroke-width="1.2"/>
+          <path d="M46 132 C34 104 42 70 70 50 C98 28 140 18 178 20 C222 22 258 38 280 64 C298 86 304 112 296 134 C290 150 276 160 262 164 C240 172 214 176 196 178 C176 188 150 192 126 186 C106 182 92 172 86 160 C80 156 70 154 60 150 C52 146 48 140 46 132 Z" fill="var(--brain)" stroke="var(--region-line)" stroke-width="1.5"/>
+          <g fill="none" stroke="var(--sulcus)" stroke-width="1.4" stroke-linecap="round">
+            <path d="M92 150 C120 138 150 131 196 136 C206 132 214 124 220 116"/>
+            <path d="M178 22 C172 50 166 74 162 92 C158 108 154 120 150 130"/>
+            <path d="M112 168 C140 159 182 156 238 150"/>
+            <path d="M74 70 C100 63 128 61 152 60"/>
+            <path d="M64 102 C90 96 118 96 142 101"/>
+            <path d="M196 60 C214 70 236 86 252 104"/>
+            <path d="M268 60 C262 72 262 86 266 98"/>
+          </g>
+          <g id="regions"></g>
+          <text x="40" y="226" font-size="10" fill="var(--muted)">front</text>
+          <text x="270" y="226" font-size="10" fill="var(--muted)">back</text>
+        </svg>
+        <div class="chips" id="chips"></div>
+        <div class="readout-box" id="region-info" aria-live="polite"></div>
+        <p class="caption">Approximate locations from imaging studies of these kinds of tasks. Dashed regions sit on the inner surface or deep inside. They show what the tasks use, not what a few minutes of play changes.</p>
+      </div>
+      <div class="panel games" id="cards"></div>
+    </div>
+    <details class="science">
+      <summary>About the science</summary>
+      <ul>
+        <li><b>Near versus far transfer.</b> People reliably improve at what they practise and at similar tasks. A major review found little evidence that brain games improve everyday life (<a href="https://journals.sagepub.com/doi/10.1177/1529100616661983" data-href="https://journals.sagepub.com/doi/10.1177/1529100616661983" target="_blank" rel="noopener">Simons et al., 2016</a>).</li>
+        <li><b>Dose.</b> The studies cited here used about 2.5 to 35 hours of training spread over weeks. ACTIVE's long-term effects depended on booster sessions.</li>
+        <li><b>Retest effects.</b> Scores rise just from repeating a task, so rising in-game numbers are mostly task learning. Trials compare against control groups for this reason.</li>
+        <li><b>Commercial ties.</b> Posit Science (BrainHQ) and Akili (EndeavorRx) have financial interests in some of the studies cited.</li>
+        <li><b>Original designs.</b> Comet Watch, Lantern Glide and Switchboard are new games built on long-published research paradigms: the useful field of view, pursuit tracking with go/no-go, and parity/magnitude task switching. They are not copies of any commercial product.</li>
+        <li>This is an independent project, not a medical device, and not a tested treatment.</li>
+      </ul>
+    </details>
+  </section>
+
+  <section id="play" hidden>
+    <div class="bar">
+      <button class="small" id="back">← Lab</button>
+      <span class="glyph" id="play-glyph" aria-hidden="true"></span>
+      <h2 id="play-title"></h2>
+      <span class="lv num" id="play-level"></span>
+      <span class="right"><button class="small ghost" id="next-game">Next game →</button></span>
+    </div>
+    <p class="how" id="how"></p>
+    <div class="stage-wrap">
+    <div class="stage" id="stage">
+      <canvas id="cv" width="640" height="360"></canvas>
+    </div>
+      <div class="overlay" id="overlay">
+        <div class="sheet">
+          <div class="result" id="overlay-result"></div>
+          <p id="overlay-text"></p>
+          <div class="meter" id="overlay-track"></div>
+          <div class="actions"><button class="primary" id="start">Start</button></div>
+          <p class="caption" id="overlay-keys"></p>
+        </div>
+      </div>
+    </div>
+    <div class="controls" id="controls"></div>
+    <div class="stats" id="stats"></div>
+  </section>
+</main>
+
+<script src="engine.js"></script>
+<script>
+(() => {
+  const E = window.Engine;
+  const $ = (id) => document.getElementById(id);
+  const cv = $("cv"), ctx = cv.getContext("2d");
+  const W = 640, H = 360, CX = W / 2, CY = H / 2;
+  const rand = (a, b) => a + Math.random() * (b - a);
+  const pick = (a) => a[Math.floor(Math.random() * a.length)];
+  const color = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  // Browser storage when the host allows it; otherwise an in-memory copy that the
+  // MCP bridge loads from and saves to the server (window.SpareCycles.load/persist).
+  const mem = {};
+  const store = {
+    get(k, d) { try { const v = JSON.parse(localStorage.getItem("sc:" + k)); if (v != null) return v; } catch {} return mem[k] ?? d; },
+    set(k, v) { mem[k] = v; try { localStorage.setItem("sc:" + k, JSON.stringify(v)); } catch {} window.SpareCycles?.persist?.(mem); },
+  };
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const nextFrame = () => new Promise(requestAnimationFrame);
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  // Opens source links through the host when embedded (sandboxed iframes can't open tabs).
+  document.addEventListener("click", (e) => {
+    const a = e.target.closest("a[data-href]"); if (!a) return;
+    const open = window.SpareCycles.openLink; if (!open) return; // plain pages: let the normal link work
+    e.preventDefault(); open(a.dataset.href);
+  });
+
+  // ---- research notes ---------------------------------------------------------
+  // Every claim is tied to a source; "engages" = active during the task in imaging
+  // studies, "found" = what training studies measured, "not" = not established.
+  const S = {
+    kraft: ["Kraft et al., GeroScience 2022", "https://pmc.ncbi.nlm.nih.gov/articles/PMC9886714"],
+    obrien15: ["O'Brien et al., Brain Research 2015", "https://pure.lib.usf.edu/en/publications/perceptual-and-cognitive-neural-correlates-of-the-useful-field-of-2/"],
+    rebok: ["Rebok et al., J Am Geriatr Soc 2014", "https://pmc.ncbi.nlm.nih.gov/articles/PMC4055506/"],
+    coe: ["Coe et al., Alzheimer's & Dementia TRCI 2026", "https://doi.org/10.1002/trc2.70197"],
+    obrien13: ["O'Brien et al., Clin Neurophysiol 2013", "https://digitalcommons.usf.edu/fac_publications/746"],
+    attarha: ["Attarha et al., 2025", "https://pmc.ncbi.nlm.nih.gov/articles/PMC12559824/"],
+    simons: ["Simons et al., Psychol Sci Public Interest 2016", "https://journals.sagepub.com/doi/10.1177/1529100616661983"],
+    worringer: ["Worringer et al., Brain Struct Funct 2019", "https://pmc.ncbi.nlm.nih.gov/articles/PMC7254756"],
+    swick: ["Swick et al., 2011 (via review)", "https://pmc.ncbi.nlm.nih.gov/articles/PMC3743681"],
+    anguera: ["Anguera et al., Nature 2013", "https://pmc.ncbi.nlm.nih.gov/articles/PMC3983066/"],
+    fda: ["FDA De Novo DEN200026, 2020", "https://www.accessdata.fda.gov/cdrh_docs/reviews/DEN200026.pdf"],
+    kim: ["Kim et al., Hum Brain Mapp 2012", "https://research.knu.ac.kr/en/publications/domain-general-and-domain-preferential-brain-regions-associated-w/"],
+    braver: ["Braver et al., Neuron 2003", "https://profiles.wustl.edu/en/publications/neural-mechanisms-of-transient-and-sustained-cognitive-control-du/"],
+    korb: ["Korb et al., 2017", "https://myweb.uiowa.edu/jiefjiang/publications/KorbJiangKingEgner2017.pdf"],
+    botvinick: ["Botvinick et al., Nature 1999", "https://collaborate.princeton.edu/en/publications/conflict-monitoring-versus-selection-for-action-in-anterior-cingu/"],
+    karbach09: ["Karbach & Kray, Dev Sci 2009", "https://onlinelibrary.wiley.com/doi/abs/10.1111/j.1467-7687.2009.00846.x"],
+    pereg: ["Pereg et al., 2013", "https://cris.iucc.ac.il/en/publications/task-switching-training-effects-are-mediated-by-working-memory-ma/"],
+    karbach14: ["Karbach & Verhaeghen, Psychol Sci 2014", "https://pmc.ncbi.nlm.nih.gov/articles/PMC4381540"],
+  };
+  const NOTES = {
+    flash: {
+      sum: "Uses your brain's visual-attention and control networks. In studies, many hours of similar training sped up visual processing in older adults. A short game isn't proven to change your brain.",
+      engages: [
+        ["In 336 older adults doing the UFOV task in a scanner, active regions included the inferior frontal gyrus, supplementary motor area, superior parietal lobule, and visual and inferior temporal cortex.", "kraft"],
+        ["Those regions overlap the frontoparietal control, cingulo-opercular and dorsal attention networks.", "kraft"],
+        ["Faster P3b brain waves (an attention and processing-speed signal) go with better UFOV scores.", "obrien15"],
+      ],
+      found: [
+        ["ACTIVE trial (2,832 adults 65+, about 10 sessions of 60–75 min): speed gains still measurable after 10 years (effect size 0.66).", "rebok"],
+        ["Over 20 years, speed training plus booster sessions was linked to fewer dementia diagnoses (hazard ratio 0.75). Without boosters there was no difference.", "coe"],
+        ["After 10 weeks of speed training, attention-related EEG signals (N2pc, P3b) grew compared with controls. Small study.", "obrien13"],
+        ["35 hours of training raised a cholinergic (acetylcholine) marker in the anterior cingulate within the trained group, but not significantly more than in controls.", "attarha"],
+      ],
+      not: [
+        ["Brain changes came after 10–35+ hours in small studies. Minutes of casual play aren't shown to change brain structure or chemistry.", "attarha"],
+        ["Gains mostly appear on the trained task and similar ones (near transfer).", "simons"],
+      ],
+    },
+    track: {
+      sum: "Tracking while catching only the right sparks uses your brain's control and stopping systems. In one study, 12 hours of a similar steer-and-react game cut multitasking costs in older adults.",
+      engages: [
+        ["Doing two tasks at once engages the intraparietal sulcus, dorsal premotor cortex and anterior insula, plus the frontal operculum and left inferior frontal regions.", "worringer"],
+        ["Holding back on non-target sparks (go/no-go) engages the pre-SMA and right inferior frontal gyrus.", "swick"],
+        ["In the NeuroRacer study, the EEG marker that changed (midline frontal theta) comes from the medial prefrontal cortex.", "anguera"],
+      ],
+      found: [
+        ["NeuroRacer, a steer-and-react game: 12 hours over 4 weeks (older adults, 16 trained): multitasking cost fell from 64% to 16%, was still lower at 6 months, and sustained attention and working memory improved.", "anguera"],
+        ["Midline frontal theta power and frontal-to-back theta coherence rose only in the multitask-trained group.", "anguera"],
+        ["EndeavorRx, NeuroRacer's commercial descendant, improved an objective attention score in children with ADHD, but parent-rated symptoms didn't differ from the control game.", "fda"],
+      ],
+      not: [
+        ["The theta result comes from one trial with 16 trained people. No randomised replication with a brain measure was found.", "anguera"],
+        ["Effects came after 12+ hours. Brief play isn't shown to change prefrontal function.", "simons"],
+      ],
+    },
+    flip: {
+      sum: "Switching between sorting rules uses frontal and parietal control areas. Practice reliably shrinks switch costs on similar tasks; broader benefits are debated.",
+      engages: [
+        ["Across 36 switching studies, the inferior frontal junction and posterior parietal cortex were active for every kind of switch.", "kim"],
+        ["Switch trials activate left lateral prefrontal and superior parietal cortex. Keeping two rules ready engages right anterior prefrontal cortex.", "braver"],
+        ["The pre-SMA tracks the cost of controlling which rule is active.", "korb"],
+        ["At flanker levels, conflicting neighbours raise anterior cingulate activity (shown in the classic flanker task).", "botvinick"],
+      ],
+      found: [
+        ["4 sessions of switch training cut switch costs on untrained switching tasks in children, young and older adults. The authors also reported broader transfer.", "karbach09"],
+        ["Another study found gains limited to the trained task.", "pereg"],
+        ["In older adults, near transfer held against active controls. Far transfer showed up mainly against passive controls.", "karbach14"],
+      ],
+      not: [
+        ["Whether switching practice improves broader abilities is disputed.", "pereg"],
+        ["No study shows structural brain change from switch training.", "karbach14"],
+      ],
+    },
+  };
+  // Region map: approximate positions on a left-hemisphere side view.
+  const REGIONS = [
+    { id: "ifg", name: "Inferior frontal gyrus and junction", x: 96, y: 132, rx: 20, ry: 11, rot: -10, games: { flash: "Active during UFOV (pars opercularis and triangularis)", track: "Left inferior frontal in dual-tasking; right IFG when holding back", flip: "Inferior frontal junction active for every kind of switch" } },
+    { id: "apfc", name: "Anterior prefrontal cortex", x: 60, y: 104, rx: 13, ry: 18, games: { flip: "Right anterior prefrontal keeps two rules ready (mixing cost)" } },
+    { id: "premotor", name: "Premotor and precentral cortex", x: 148, y: 58, rx: 13, ry: 25, rot: 14, games: { flash: "Right precentral gyrus active during UFOV", track: "Dorsal premotor cortex, shared core of dual-tasking" } },
+    { id: "sma", name: "SMA and pre-SMA (inner surface)", x: 158, y: 28, rx: 20, ry: 6, deep: true, games: { flash: "Supplementary motor area active during UFOV", track: "Pre-SMA when holding back on non-targets", flip: "Pre-SMA tracks rule-control costs" } },
+    { id: "parietal", name: "Superior parietal lobule and intraparietal sulcus", x: 222, y: 66, rx: 27, ry: 16, rot: 28, games: { flash: "Right superior parietal lobule (dorsal attention network)", track: "Intraparietal sulcus, shared core of dual-tasking", flip: "Posterior parietal active for every switch; superior parietal tracks switch cost" } },
+    { id: "occipital", name: "Visual cortex (middle occipital)", x: 283, y: 114, rx: 12, ry: 22, games: { flash: "Left middle occipital gyrus active during UFOV" } },
+    { id: "temporal", name: "Inferior temporal cortex", x: 180, y: 173, rx: 32, ry: 8, rot: -3, games: { flash: "Inferior temporal gyrus active during UFOV" } },
+    { id: "insula", name: "Anterior insula and frontal operculum (deep)", x: 142, y: 141, rx: 18, ry: 7, deep: true, games: { track: "Anterior insula and frontal operculum in dual-tasking" } },
+    { id: "mpfc", name: "Medial prefrontal cortex (inner surface)", x: 84, y: 68, rx: 14, ry: 10, deep: true, games: { track: "Source of midline frontal theta, which rose after NeuroRacer training" } },
+    { id: "acc", name: "Anterior cingulate cortex (inner surface)", x: 120, y: 98, rx: 20, ry: 7, deep: true, games: { flip: "Conflict monitoring at flanker levels", flash: "Cholinergic marker rose within trained group; not vs controls" } },
+  ];
+
+  // ---- per-game progress: levels, history, level tracks ------------------------
+  const hist = (g) => store.get("hist:" + g, []);
+  const pushHist = (g, v) => store.set("hist:" + g, [...hist(g), { t: Date.now(), ...v }].slice(-40));
+  function trackHTML(n, level, progress, id = "") {
+    let h = `<div class="meter"${id && ` id="${id}"`} style="--n:${n}" role="img" aria-label="Level ${level + 1} of ${n}, ${Math.round(progress * 100)}% through">`;
+    for (let i = 0; i < n; i++) h += `<div class="seg"><i style="width:${i < level ? 100 : i === level ? Math.round(progress * 100) : 0}%"></i></div>`;
+    return h + "</div>";
+  }
+  function spark(values, lowerIsBetter) {
+    if (values.length < 2) return `<svg class="spark" viewBox="0 0 92 26" aria-hidden="true"><line x1="2" y1="13" x2="90" y2="13" stroke="var(--line)" stroke-width="2" stroke-dasharray="3 4"/></svg>`;
+    const lo = Math.min(...values), hi = Math.max(...values), span = hi - lo || 1;
+    const pt = (v, i) => [(i / (values.length - 1)) * 84 + 4, lowerIsBetter ? 4 + (v - lo) / span * 18 : 22 - (v - lo) / span * 18];
+    const pts = values.map(pt), [ex, ey] = pts.at(-1);
+    return `<svg class="spark" viewBox="0 0 92 26"><title>Your last ${values.length} sessions. Up is better.</title>
+      <line x1="2" y1="25" x2="90" y2="25" stroke="var(--line)"/>
+      <polyline points="${pts.map((p) => p.join(",")).join(" ")}" fill="none" stroke="var(--c)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+      <circle cx="${ex}" cy="${ey}" r="3" fill="var(--c)"/></svg>`;
+  }
+  const readoutHTML = (m) => m.values.length ? `<span class="readout">${Math.round(m.values.at(-1))}<small>${m.unit}</small></span>` : `<span class="readout empty">–</span>`;
+  function deltaHTML(m) {
+    if (!m.values.length) return `<span class="delta flat">Not played yet</span>`;
+    if (m.values.length < 2) return `<span class="delta flat">First session</span>`;
+    const d = Math.round(m.values.at(-1) - m.values.at(-2)), better = m.lower ? d < 0 : d > 0;
+    if (!d) return `<span class="delta flat">No change</span>`;
+    return `<span class="delta ${better ? "up" : "down"}">${better ? "▲" : "▼"} ${Math.abs(d)}${m.unit ? " " + m.unit : ""} vs last</span>`;
+  }
+  const GLYPH = {
+    flash: `<svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="17" r="11" fill="none" stroke="currentColor" stroke-opacity=".4" stroke-dasharray="2 3"/><path d="M16 12l1.4 3 3.3.4-2.4 2.2.6 3.2-2.9-1.6-2.9 1.6.6-3.2-2.4-2.2 3.3-.4z" fill="currentColor"/><path d="M27 6l-6 3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" opacity=".55"/><circle cx="27.5" cy="5.8" r="2.4" fill="currentColor"/></svg>`,
+    track: `<svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="14" cy="18" r="9.5" fill="currentColor" fill-opacity=".2" stroke="currentColor" stroke-opacity=".55"/><circle cx="15.5" cy="19" r="2.8" fill="currentColor"/><path d="M26 3.5l3.4 4.5-3.4 4.5-3.4-4.5z" fill="currentColor"/></svg>`,
+    flip: `<svg viewBox="0 0 32 32" aria-hidden="true"><rect x="5" y="7" width="22" height="16" rx="3.5" fill="none" stroke="currentColor" stroke-width="1.8"/><text x="16" y="20" text-anchor="middle" font-size="11" font-weight="700" font-family="system-ui, sans-serif" fill="currentColor">7</text><path d="M9 27.5h5M18 27.5h5M9 27.5l1.6-1.6M23 27.5l-1.6-1.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>`,
+  };
+  const KEYS = {
+    flash: "Answer with <kbd>←</kbd> <kbd>→</kbd> or tap · <kbd>Enter</kbd> starts",
+    track: "Steer with the pointer or <kbd>←</kbd><kbd>↑</kbd><kbd>↓</kbd><kbd>→</kbd> · catch with <kbd>Space</kbd>",
+    flip: "Sort with <kbd>←</kbd> <kbd>→</kbd> or the buttons · <kbd>Enter</kbd> starts",
+  };
+
+  // ---- shell -------------------------------------------------------------------
+  let current = null, currentName = null, token = 0, keyHandler = null;
+  const overlay = $("overlay"), controls = $("controls"), stats = $("stats");
+  function fitCanvas() {
+    const r = cv.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+    if (!r.width) return;
+    cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr);
+    ctx.setTransform(cv.width / W, 0, 0, cv.height / H, 0, 0); if (!overlay.hidden) clear();
+  }
+  new ResizeObserver(fitCanvas).observe(cv);
+  const repaint = () => { if (!overlay.hidden) clear(); if (!$("hub").hidden) renderHub(); };
+  new MutationObserver(repaint).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", repaint);
+  const clear = () => {
+    ctx.fillStyle = color("--stage"); ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = color("--dot"); for (let x = 16; x < W; x += 32) for (let y = 16; y < H; y += 32) ctx.fillRect(x - 1, y - 1, 2, 2);
+  };
+  const text = (s, x, y, size = 18, fill = color("--ink")) => {
+    ctx.fillStyle = fill; ctx.font = `700 ${size}px ${getComputedStyle(document.body).fontFamily}`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(s, x, y);
+  };
+  const setStats = (pairs) => { stats.innerHTML = pairs.map(([k, v]) => `<span>${k} <b>${v}</b></span>`).join(""); };
+  const setControls = (buttons) => {
+    controls.replaceChildren(...buttons.map(([label, fn]) => {
+      const b = document.createElement("button"); b.textContent = label;
+      b.addEventListener("pointerdown", (e) => { e.preventDefault(); fn(); }); return b;
+    }));
+  };
+  function showOverlay(msg, label = "Start") {
+    const p = current.progress(), m = current.metric(), after = label !== "Start";
+    $("overlay-result").innerHTML = after
+      ? `<span>${readoutHTML(m)}</span><span class="metric-name">${m.name}</span>${deltaHTML(m)}`
+      : `<span class="glyph" style="--c:var(--${currentName})">${GLYPH[currentName]}</span><h2>${current.title}</h2>`;
+    $("overlay-text").innerHTML = msg; $("start").textContent = label;
+    $("overlay-track").outerHTML = trackHTML(current.levels, p.level, p.progress, "overlay-track");
+    $("overlay-keys").innerHTML = KEYS[currentName];
+    $("play-level").textContent = `Level ${p.level + 1} of ${current.levels}`;
+    overlay.hidden = false; $("start").focus({ preventScroll: true });
+  }
+  const stopRun = () => { token++; keyHandler = null; cv.onpointerdown = cv.onpointermove = cv.onpointerup = null; setControls([]); };
+
+  function openGame(name) {
+    if (!games[name]) return;
+    stopRun(); current = games[name]; currentName = name;
+    $("hub").hidden = true; $("play").hidden = false;
+    $("play").style.setProperty("--c", `var(--${name})`);
+    $("play-title").textContent = current.title; $("how").innerHTML = current.how();
+    $("play-glyph").innerHTML = GLYPH[name];
+    setStats([]); fitCanvas(); clear(); showOverlay(current.intro());
+  }
+  function openHub() { stopRun(); $("play").hidden = true; $("hub").hidden = false; renderHub(); }
+  $("back").addEventListener("click", openHub);
+  // Quick round: the game you've played least recently, so a short wait covers all three over time.
+  const ORDER = ["flash", "track", "flip"];
+  const lastPlayed = (g) => hist(g).at(-1)?.t ?? 0;
+  $("quick").addEventListener("click", () => openGame(ORDER.reduce((a, b) => (lastPlayed(b) < lastPlayed(a) ? b : a))));
+  $("next-game").addEventListener("click", () => openGame(ORDER[(ORDER.indexOf(currentName) + 1) % ORDER.length]));
+  $("start").addEventListener("click", () => {
+    overlay.hidden = true; const t = ++token;
+    current.play(() => t === token).catch(console.error);
+  });
+  window.addEventListener("keydown", (e) => {
+    if ($("play").hidden) return;
+    if (overlay.hidden && ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", " "].includes(e.key)) e.preventDefault();
+    if (overlay.hidden && keyHandler) keyHandler(e, true);
+    else if (!overlay.hidden && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); $("start").click(); }
+    else if (!overlay.hidden && e.key === "Escape") openHub();
+  });
+  window.addEventListener("keyup", (e) => { if (overlay.hidden && keyHandler) keyHandler(e, false); });
+
+  function waitFor(options, { keys = {}, timeout = Infinity, clicks = null } = {}) {
+    return new Promise((resolve) => {
+      let done = false;
+      const finish = (v) => { if (done) return; done = true; keyHandler = null; cv.onpointerdown = null; clearTimeout(timer); setControls([]); resolve(v); };
+      keyHandler = (e, down) => { if (down && !e.repeat && keys[e.key] !== undefined) finish(keys[e.key]); }; // held keys must not answer the next trial
+      setControls(options.map(([label, value]) => [label, () => finish(value)]));
+      if (clicks) cv.onpointerdown = (e) => {
+        const r = cv.getBoundingClientRect(), x = (e.clientX - r.left) * W / r.width, y = (e.clientY - r.top) * H / r.height;
+        const v = clicks(x, y); if (v !== undefined) finish(v);
+      };
+      const timer = timeout < Infinity ? setTimeout(() => finish(null), timeout) : 0;
+    });
+  }
+
+  // ---- 1. Comet Watch: speed of processing / useful field of view --------------
+  // Mechanism from the public UFOV research (Ball et al. 1988; expired US 5,801,810
+  // and 6,364,486): a brief, masked display with a central judgement and a
+  // peripheral target. Our design: two centre glyphs are the same or different,
+  // a comet streaks past somewhere on a ring, and you answer where the comet was
+  // first, then same/different. Both answers are always asked; no candidate images.
+  // Level 1 is the centre judgement alone; 2-4 widen the comet ring; 5-6 add
+  // tail-less look-alike stars; 7-8 make "different" glyphs differ by one point.
+  const CW_LEVELS = [
+    { ring: -1, dis: 0, delta: 3 }, { ring: 0, dis: 0, delta: 3 }, { ring: 1, dis: 0, delta: 3 }, { ring: 2, dis: 0, delta: 3 },
+    { ring: 1, dis: 7, delta: 2 }, { ring: 2, dis: 15, delta: 2 }, { ring: 2, dis: 23, delta: 1 }, { ring: 2, dis: 23, delta: 1 },
+  ];
+  const CW_UP = 110; // ms threshold that clears a level
+  const RINGS = [72, 118, 160];
+  const pos = (ring, k) => [CX + RINGS[ring] * 1.45 * Math.cos(k * Math.PI / 4), CY + RINGS[ring] * Math.sin(k * Math.PI / 4)];
+  async function frameMs() { // median rAF interval, so 120 Hz screens don't halve the exposure
+    const ts = []; for (let i = 0; i < 12; i++) ts.push(await nextFrame());
+    const d = ts.slice(1).map((t, i) => t - ts[i]).sort((a, b) => a - b); return d[5];
+  }
+  const shuffle = (a) => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+  function drawGlyph(x, y, points, r, fill) { // a star with `points` tips
+    ctx.beginPath();
+    for (let i = 0; i < points * 2; i++) { const a = -Math.PI / 2 + i * Math.PI / points, rr = i % 2 ? r * 0.42 : r; ctx.lineTo(x + rr * Math.cos(a), y + rr * Math.sin(a)); }
+    ctx.closePath(); ctx.fillStyle = fill; ctx.fill();
+  }
+  function drawComet(x, y, fill, tail = true) {
+    if (tail) { ctx.strokeStyle = fill; ctx.lineWidth = 3; ctx.globalAlpha = 0.6; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - 26, y - 14); ctx.stroke(); ctx.globalAlpha = 1; }
+    ctx.beginPath(); ctx.arc(x, y, 7, 0, 7); ctx.fillStyle = fill; ctx.fill();
+  }
+  function drawMask() {
+    clear(); const ink = color("--ink"), acc = color("--flash");
+    const spots = [[CX - 30, CY], [CX + 30, CY]]; for (let r = 0; r < 3; r++) for (let k = 0; k < 8; k++) spots.push(pos(r, k));
+    for (const [x, y] of spots) for (let i = 0; i < 14; i++) { ctx.fillStyle = Math.random() < 0.5 ? ink : acc; ctx.fillRect(x + rand(-22, 18), y + rand(-18, 14), rand(3, 9), rand(3, 9)); }
+  }
+  const cometState = () => store.get("flash", { level: 0, ms: 500, best: null });
+
+  const flash = {
+    title: "Comet Watch", levels: CW_LEVELS.length, trains: "Visual attention · processing speed",
+    how() {
+      const L = CW_LEVELS[cometState().level];
+      return L.ring < 0 ? "<b>Comet Watch.</b> Two star glyphs flash in the centre. Were they the <b>same</b> or <b>different</b>? The flash gets shorter as you improve."
+        : "<b>Comet Watch.</b> Two star glyphs flash in the centre while a comet streaks past" + (L.dis ? " among plain stars" : "") + ". Click where the <b>comet</b> was, then say whether the glyphs were the <b>same</b> or <b>different</b>.";
+    },
+    intro: () => `20 quick trials, about a minute. Keep your eyes on the centre.<br>Clear the level with a flash threshold of ${CW_UP} ms or less.`,
+    progress() { const st = cometState(); return { level: st.level, progress: st.best == null ? 0 : E.clamp((500 - st.best) / (500 - CW_UP), 0, 1) }; },
+    metric() { return { values: hist("flash").map((x) => x.v), name: "Flash threshold", unit: "ms", lower: true }; },
+    async play(alive) {
+      const st = cometState(), L = CW_LEVELS[st.level];
+      const s = E.staircase({ value: st.ms, min: 1000 / 60, max: 500, down: 2, factor: 0.8 });
+      let correct = 0, shown = 0; const frame = await frameMs();
+      for (let trial = 1; trial <= 20 && alive(); trial++) {
+        setStats([["Trial", `${trial}/20`], ["Flash", `${Math.round(s.value)} ms`]]);
+        clear(); text("+", CX, CY, 30, color("--muted")); await sleep(600); if (!alive()) return;
+        const same = Math.random() < 0.5, a = 3 + Math.floor(Math.random() * (9 - L.delta));
+        const b = same ? a : a + L.delta * (Math.random() < 0.5 && a - L.delta >= 3 ? -1 : 1);
+        const k = Math.floor(Math.random() * 8);
+        const free = []; for (let r = 0; r < 3; r++) for (let j = 0; j < 8; j++) if (!(r === L.ring && j === k)) free.push([r, j]);
+        shuffle(free);
+        const frames = Math.max(1, Math.round(s.value / frame)), acc = color("--flash"), ink = color("--ink");
+        clear(); drawGlyph(CX - 30, CY, a, 18, ink); drawGlyph(CX + 30, CY, b, 18, ink);
+        for (const [r, j] of free.slice(0, L.dis)) drawComet(...pos(r, j), acc, false);
+        if (L.ring >= 0) drawComet(...pos(L.ring, k), acc);
+        await nextFrame(); const t0 = performance.now();
+        for (let f = 0; f < frames; f++) await nextFrame();
+        drawMask(); shown = performance.now() - t0; // the mask ends the display
+        await sleep(500); if (!alive()) return;
+        let spotOk = true;
+        if (L.ring >= 0) {
+          clear(); text("Where was the comet?", CX, CY, 16, color("--muted"));
+          for (let j = 0; j < 8; j++) { const [x, y] = pos(L.ring, j); ctx.beginPath(); ctx.arc(x, y, 15, 0, 7); ctx.strokeStyle = color("--muted"); ctx.lineWidth = 2; ctx.stroke(); }
+          const spot = await waitFor([], { clicks: (x, y) => { for (let j = 0; j < 8; j++) { const [px, py] = pos(L.ring, j); if (Math.hypot(x - px, y - py) < 34) return j; } } });
+          if (!alive()) return;
+          spotOk = spot === k;
+        }
+        clear(); text("Were the two centre glyphs the same?", CX, CY - 20, 17, color("--muted"));
+        text("← same      different →", CX, CY + 20, 15, color("--muted"));
+        const saidSame = await waitFor([["← Same", true], ["Different →", false]], { keys: { ArrowLeft: true, ArrowRight: false, s: true, d: false } });
+        if (!alive()) return;
+        const ok = spotOk && saidSame === same;
+        E.stepStaircase(s, ok); correct += ok;
+        clear(); text(ok ? "✓" : "✗", CX, CY, 46, color(ok ? "--good" : "--bad")); await sleep(350);
+      }
+      if (!alive()) return;
+      const thr = E.threshold(s);
+      const levelUp = thr <= CW_UP && st.level < CW_LEVELS.length - 1;
+      store.set("flash", { level: st.level + levelUp, ms: levelUp ? Math.min(500, thr * 3) : s.value, best: levelUp ? null : Math.min(st.best ?? Infinity, thr) });
+      pushHist("flash", { v: thr, level: st.level });
+      clear(); $("how").innerHTML = this.how();
+      showOverlay(`Threshold <b>${Math.round(thr)} ms</b> · ${correct}/20 correct · last flash ${Math.round(shown)} ms` +
+        (levelUp ? `<br><b>Level ${st.level + 2} unlocked.</b> The instructions above show what's new.` : ""), "Play again");
+    },
+  };
+
+  // ---- 2. Lantern Glide: tracking + go/no-go under interference ---------------
+  // Mechanism from dual-task research: a continuous pursuit-tracking task (keep
+  // your glider inside a drifting ring of light) while catching only one kind of
+  // spark. Every moment is dual-task; there is no tracking-only mode. Ring drift
+  // and the catch window retune toward 80% after each run, using the proportional
+  // rule published in Anguera et al. 2013. Stages make lures more target-like.
+  const LG_STAGES = 6;
+  const SPARK_LURES = [
+    [["circle", "--accent"], ["square", "--bad"], ["circle", "--bad"], ["square", "--accent"]],
+    [["circle", "--warn"], ["square", "--warn"]],
+    [["diamond", "--accent"], ["diamond", "--bad"]],
+  ];
+  const sparkLures = (stage) => SPARK_LURES.slice(0, stage < 2 ? 1 : stage < 4 ? 2 : 3).flat();
+  function drawSpark(shape, x, y, r, fill) {
+    ctx.fillStyle = fill; ctx.beginPath();
+    if (shape === "circle") ctx.arc(x, y, r, 0, 7);
+    else if (shape === "square") ctx.rect(x - r * 0.85, y - r * 0.85, r * 1.7, r * 1.7);
+    else { ctx.moveTo(x, y - r * 1.2); ctx.lineTo(x + r, y); ctx.lineTo(x, y + r * 1.2); ctx.lineTo(x - r, y); ctx.closePath(); }
+    ctx.fill();
+  }
+  // The ring drifts on two incommensurate sine pairs, so its path never repeats.
+  const ringAt = (w) => [CX + 210 * Math.sin(w * 0.0031) + 40 * Math.sin(w * 0.0097 + 2), CY + 100 * Math.sin(w * 0.0043 + 1) + 30 * Math.sin(w * 0.0121)];
+  const glideState = () => store.get("track", { drive: 40, sign: 40, stars: 0 });
+
+  const track = {
+    title: "Lantern Glide", levels: LG_STAGES, trains: "Multitasking · holding back",
+    how() {
+      const stage = Math.min(LG_STAGES - 1, Math.floor(glideState().stars / 2));
+      const lure = stage < 2 ? "Other sparks differ in colour and shape." : stage < 4 ? "Some sparks are gold but not diamonds." : "Some sparks are diamonds but not gold.";
+      return `<b>Lantern Glide.</b> Keep your glider inside the drifting ring of light (move the pointer, drag, or use the arrow keys) and press <b>Space</b> or <b>Catch</b> only for a <b>gold diamond</b> spark. ${lure}`;
+    },
+    intro: () => "30-second run. Both tasks retune toward 80% after each run.<br>Two runs with both at 80% or better clear a stage.",
+    progress() { const st = glideState(); const level = Math.min(LG_STAGES - 1, Math.floor(st.stars / 2)); return { level, progress: level === LG_STAGES - 1 ? 1 : (st.stars % 2) / 2 }; },
+    metric() { return { values: hist("track").map((x) => x.v), name: "Multitask level", unit: "", lower: false }; },
+    async play(alive) {
+      const st = glideState(), stage = this.progress().level, pool = sparkLures(stage);
+      const speed = 60 + 2.5 * st.drive;                       // ring drift, world units/s; ~2.5 per level
+      const windowMs = E.clamp(1100 - 7 * st.sign, 300, 1100);  // ~7 ms per sign level
+      const R = 34, glideSpeed = 320;
+      let w = 0, [gx, gy] = ringAt(0), tx = null, ty = null, kx = 0, ky = 0;
+      let inside = 0, frames = 0, hits = 0, cr = 0, signs = 0, spark = null, nextSpark = 1500, pressed = false;
+      const respond = () => { pressed = true; };
+      keyHandler = (e, down) => {
+        const v = down ? 1 : 0;
+        if (e.key === "ArrowLeft") kx = -v || (kx === -1 ? 0 : kx); if (e.key === "ArrowRight") kx = v || (kx === 1 ? 0 : kx);
+        if (e.key === "ArrowUp") ky = -v || (ky === -1 ? 0 : ky); if (e.key === "ArrowDown") ky = v || (ky === 1 ? 0 : ky);
+        if (e.key === " " && down && !e.repeat) respond();
+      };
+      setControls([["Catch", respond]]);
+      const toStage = (e) => { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left) * W / r.width, (e.clientY - r.top) * H / r.height]; };
+      cv.onpointermove = (e) => { [tx, ty] = toStage(e); };
+      cv.onpointerdown = (e) => { cv.setPointerCapture(e.pointerId); [tx, ty] = toStage(e); };
+      let last = performance.now(), t = 0;
+      while (t < 30000 && alive()) {
+        await nextFrame();
+        const now = performance.now(), dt = Math.min(50, now - last); last = now; t += dt;
+        w += speed * dt / 1000;
+        // Glider: keys move it directly; the pointer pulls it at a capped speed.
+        let vx = kx, vy = ky;
+        if ((kx || ky) === 0 && tx != null) { const dx = tx - gx, dy = ty - gy, d = Math.hypot(dx, dy); if (d > 2) { vx = dx / d * Math.min(1, d / 40); vy = dy / d * Math.min(1, d / 40); } }
+        gx = E.clamp(gx + vx * glideSpeed * dt / 1000, 8, W - 8); gy = E.clamp(gy + vy * glideSpeed * dt / 1000, 8, H - 8);
+        const [rx, ry] = ringAt(w), ok = Math.hypot(gx - rx, gy - ry) < R; frames++; inside += ok;
+        // Sparks: 400 ms, anywhere on screen, every 2-3 s, one in three is the gold diamond.
+        nextSpark -= dt;
+        if (!spark && nextSpark <= 0) {
+          const target = Math.random() < 1 / 3, lure = pick(pool);
+          spark = { target, shape: target ? "diamond" : lure[0], fill: target ? "--warn" : lure[1], x: rand(40, W - 40), y: rand(30, H - 40), age: 0, hit: false, fa: false };
+          nextSpark = rand(2000, 3000);
+        }
+        if (spark) {
+          spark.age += dt;
+          if (pressed) { if (spark.target) spark.hit ||= spark.age <= windowMs; else spark.fa = true; }
+          if (spark.age > Math.max(windowMs, 400)) { signs++; if (spark.target ? spark.hit : !spark.fa) spark.target ? hits++ : cr++; spark = null; }
+        }
+        pressed = false;
+        clear();
+        ctx.beginPath(); ctx.arc(rx, ry, R, 0, 7); ctx.fillStyle = color("--road"); ctx.fill();
+        ctx.beginPath(); ctx.arc(gx, gy, 8, 0, 7); ctx.fillStyle = color(ok ? "--track" : "--bad"); ctx.fill();
+        if (spark && spark.age < 400) drawSpark(spark.shape, spark.x, spark.y, 13, color(spark.fill));
+        ctx.fillStyle = color("--muted"); ctx.fillRect(0, H - 4, W * (1 - t / 30000), 4);
+      }
+      keyHandler = null; cv.onpointerdown = cv.onpointermove = null; setControls([]);
+      if (!alive()) return;
+      const track_ = inside / frames, signAcc = signs ? (hits + cr) / signs : 1, both = track_ >= 0.8 && signAcc >= 0.8;
+      const next = { drive: E.clamp(st.drive + E.blockLevelChange(track_, 0.0058), 0, 200), sign: E.clamp(st.sign + E.blockLevelChange(signAcc, 0.0175), 0, 114), stars: st.stars + both };
+      store.set("track", next);
+      pushHist("track", { v: next.drive + next.sign, drive: Math.round(track_ * 100), sign: Math.round(signAcc * 100) });
+      const stageUp = Math.floor(next.stars / 2) > Math.floor(st.stars / 2) && stage < LG_STAGES - 1;
+      clear(); $("how").innerHTML = this.how();
+      showOverlay(`In the light <b>${Math.round(track_ * 100)}%</b> · sparks <b>${Math.round(signAcc * 100)}%</b> (${signs} shown)<br>` +
+        (stageUp ? `<b>Stage ${stage + 2} unlocked.</b> The lures get trickier.` : both ? "Both at 80% or better. One more like that clears the stage." : "Each task now retunes toward 80%."), "Next run");
+    },
+  };
+
+  // ---- 3. Switchboard: cued task switching with digits -------------------------
+  // The classic parity/magnitude switching paradigm (Sudevan & Taylor 1987;
+  // Rogers & Monsell 1995): one digit, two possible rules, the panel colour says
+  // which. ← means odd (parity) or low (magnitude); → means even or high, so the
+  // two rules can agree or conflict. Levels raise the switch rate, shorten the
+  // cue-to-digit interval, then add flanking digits that point to the other key.
+  const SB_LEVELS = [
+    { p: 0.2, cti: 500, flank: 0 }, { p: 0.35, cti: 300, flank: 0 }, { p: 0.5, cti: 150, flank: 0 },
+    { p: 0.5, cti: 0, flank: 0 }, { p: 0.5, cti: 150, flank: 0.5 }, { p: 0.5, cti: 0, flank: 0.5 },
+  ];
+  const DIGITS = [1, 2, 3, 4, 6, 7, 8, 9];
+  const keyFor = (rule, d) => (rule === "parity" ? (d % 2 ? "left" : "right") : (d < 5 ? "left" : "right"));
+  const boardState = () => store.get("flip", { level: 0, deadline: 2500, best: null });
+
+  const flip = {
+    title: "Switchboard", levels: SB_LEVELS.length, trains: "Switching between rules",
+    how() {
+      const L = SB_LEVELS[boardState().level];
+      return "<b>Switchboard.</b> Sort each digit with ← or →. <span style=\"color:var(--flip)\"><b>Green panel</b></span>: odd ← · even →. <span style=\"color:var(--warn)\"><b>Amber panel</b></span>: below 5 ← · above 5 →." +
+        (L.flank ? " Only the <b>middle</b> digit counts; the outer ones may point the other way." : "");
+    },
+    intro() { const L = SB_LEVELS[boardState().level]; return `45 seconds · rule changes on about ${Math.round(L.p * 100)}% of trials · ${L.cti ? `panel colour shows ${L.cti} ms early` : "colour and digit appear together"}.<br>Clear the level with 80% correct.`; },
+    progress() { const st = boardState(), h = hist("flip").filter((x) => x.level === st.level); return { level: st.level, progress: h.length ? E.clamp(h.at(-1).acc / 0.8, 0, 1) : 0 }; },
+    metric() { return { values: hist("flip").filter((x) => x.v != null).map((x) => x.v), name: "Switch cost", unit: "ms", lower: true }; },
+    async play(alive) {
+      const st = boardState(), L = SB_LEVELS[st.level];
+      const s = E.staircase({ value: st.deadline, min: 450, max: 4000, down: 3, factor: 0.9 });
+      const end = performance.now() + 45000;
+      let rule = pick(["parity", "magnitude"]), score = 0, n = 0;
+      const rt = { repeat: [], switch: [] };
+      const panel = (fill, label) => {
+        clear(); ctx.fillStyle = fill; ctx.globalAlpha = 0.14; ctx.fillRect(CX - 150, CY - 70, 300, 140); ctx.globalAlpha = 1;
+        ctx.strokeStyle = fill; ctx.lineWidth = 4; ctx.strokeRect(CX - 150, CY - 70, 300, 140); text(label, CX, CY - 92, 14, fill);
+      };
+      while (performance.now() < end && alive()) {
+        const switched = Math.random() < L.p; if (switched) rule = rule === "parity" ? "magnitude" : "parity";
+        const d = pick(DIGITS), answer = keyFor(rule, d);
+        const flankD = Math.random() < L.flank ? pick(DIGITS.filter((x) => keyFor(rule, x) !== answer)) : null;
+        const fill = color(rule === "parity" ? "--flip" : "--warn"), label = rule === "parity" ? "odd ←  · →  even" : "below 5 ←  · →  above 5";
+        if (L.cti) { panel(fill, label); await sleep(L.cti); if (!alive()) return; }
+        panel(fill, label);
+        if (flankD != null) { text(String(flankD), CX - 70, CY, 54, color("--muted")); text(String(flankD), CX + 70, CY, 54, color("--muted")); }
+        text(String(d), CX, CY, 64);
+        const deadline = s.value, t0 = performance.now();
+        const said = await waitFor([["← odd · low", "left"], ["even · high →", "right"]], { keys: { ArrowLeft: "left", ArrowRight: "right" }, timeout: deadline });
+        if (!alive()) return;
+        const ok = said === answer, ms = performance.now() - t0;
+        n++; if (ok) { score++; (switched ? rt.switch : rt.repeat).push(ms); }
+        E.stepStaircase(s, ok);
+        clear(); text(ok ? "✓" : said ? "✗" : "too slow", CX, CY, ok || said ? 46 : 22, color(ok ? "--good" : "--bad"));
+        setStats([["Score", score], ["Time per answer", `${(s.value / 1000).toFixed(2)} s`], ["Left", `${Math.max(0, Math.ceil((end - performance.now()) / 1000))} s`]]);
+        await sleep(250);
+      }
+      if (!alive()) return;
+      const acc = n ? score / n : 0, cost = rt.switch.length && rt.repeat.length ? Math.round(E.mean(rt.switch) - E.mean(rt.repeat)) : null;
+      const levelUp = acc >= 0.8 && n >= 12 && st.level < SB_LEVELS.length - 1;
+      store.set("flip", { level: st.level + levelUp, deadline: levelUp ? Math.min(4000, s.value * 1.3) : s.value, best: Math.max(st.best ?? 0, score) });
+      pushHist("flip", { v: cost, acc, level: st.level });
+      clear(); $("how").innerHTML = this.how();
+      showOverlay(`Score <b>${score}</b> of ${n} (${Math.round(acc * 100)}%) · switch cost <b>${cost == null ? "–" : cost + " ms"}</b>` +
+        (levelUp ? `<br><b>Level ${st.level + 2} unlocked.</b>` : "<br>Switch cost is how much slower you are right after the rule changes."), "Play again");
+    },
+  };
+
+  const games = { flash, track, flip };
+
+  // ---- hub: brain map + game list --------------------------------------------
+  let focus = null; // game whose regions are highlighted
+  function renderBrain() {
+    $("regions").innerHTML = REGIONS.map((r) => {
+      const on = focus && r.games[focus];
+      const cls = `region${r.deep ? " deep" : ""}${focus && !on ? " dim" : ""}`;
+      const style = on ? `fill:var(--${focus});stroke:var(--${focus});fill-opacity:.5` : "";
+      return `<ellipse class="${cls}" style="${style}" data-region="${r.id}" cx="${r.x}" cy="${r.y}" rx="${r.rx}" ry="${r.ry}" transform="rotate(${r.rot ?? 0} ${r.x} ${r.y})" tabindex="0" role="button" aria-label="${esc(r.name)}"><title>${esc(r.name)}</title></ellipse>`;
+    }).join("");
+    $("chips").innerHTML = Object.entries(games).map(([g, game]) => `<button class="chip" data-chip="${g}" style="--c:var(--${g})" aria-pressed="${focus === g}"><i></i>${game.title}</button>`).join("");
+  }
+  const defaultInfo = () => `<span class="eyebrow">How to read it</span><div>Pick a game or tap a region to see which tasks use it and the study behind each link.</div>`;
+  function showRegion(id) {
+    const r = REGIONS.find((x) => x.id === id); if (!r) return;
+    $("region-info").innerHTML = `<span class="eyebrow">Region</span><div><b>${esc(r.name)}</b></div><ul>${Object.entries(r.games).map(([g, why]) => `<li style="--c:var(--${g})"><i></i><span><b>${games[g].title}</b> · ${esc(why)}</span></li>`).join("")}</ul>`;
+  }
+  function showGameRegions(g) {
+    const rs = REGIONS.filter((r) => r.games[g]);
+    $("region-info").innerHTML = `<span class="eyebrow">${games[g].title} engages</span><ul>${rs.map((r) => `<li style="--c:var(--${g})"><i></i><span>${esc(r.name)}</span></li>`).join("")}</ul>`;
+  }
+  const regionEvent = (e) => { const id = e.target.dataset?.region; if (id) showRegion(id); };
+  for (const ev of ["pointerover", "focusin", "click"]) $("regions").addEventListener(ev, regionEvent);
+  $("regions").addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); regionEvent(e); } });
+
+  const noteList = (items) => `<ul>${items.map(([t, k]) => `<li>${esc(t)} <span class="src">(<a href="${S[k][1]}" data-href="${S[k][1]}" target="_blank" rel="noopener">${esc(S[k][0])}</a>)</span></li>`).join("")}</ul>`;
+  function renderHub() {
+    renderBrain();
+    if (!focus) $("region-info").innerHTML = defaultInfo(); else showGameRegions(focus);
+    $("cards").innerHTML = Object.entries(games).map(([g, game]) => {
+      const p = game.progress(), m = game.metric(), N = NOTES[g];
+      return `<article class="game" data-game="${g}" style="--c:var(--${g})">
+        <span class="glyph">${GLYPH[g]}</span>
+        <div>
+          <div class="game-title"><h2>${game.title}</h2><span class="lv num">Level ${p.level + 1} of ${game.levels}</span></div>
+          <div class="trains">${game.trains}</div>
+          ${trackHTML(game.levels, p.level, p.progress)}
+        </div>
+        <div class="stat">${readoutHTML(m)}<span class="metric-name">${m.name}</span></div>
+        <div class="actions">
+          <span class="trend">${spark(m.values.slice(-12), m.lower)}${deltaHTML(m)}</span>
+          <button class="small ghost" data-notes="${g}" aria-expanded="false" aria-controls="notes-${g}">Brain notes</button>
+          <button class="small primary" data-play="${g}">Play</button>
+        </div>
+      </article>
+      <div class="notes" id="notes-${g}" style="--c:var(--${g})" hidden>
+        <p class="sum">${esc(N.sum)}</p>
+        <h3>Engages</h3>${noteList(N.engages)}
+        <h3>Training studies found</h3>${noteList(N.found)}
+        <h3>Not established</h3>${noteList(N.not)}
+      </div>`;
+    }).join("");
+  }
+  $("cards").addEventListener("click", (e) => {
+    const play = e.target.closest("[data-play]"), notes = e.target.closest("[data-notes]");
+    if (play) openGame(play.dataset.play);
+    if (notes) { const n = $("notes-" + notes.dataset.notes); n.hidden = !n.hidden; notes.setAttribute("aria-expanded", !n.hidden); notes.textContent = n.hidden ? "Brain notes" : "Hide notes"; }
+  });
+  const setFocus = (g) => { if (focus === g) return; focus = g; renderBrain(); if (g) showGameRegions(g); else $("region-info").innerHTML = defaultInfo(); };
+  $("chips").addEventListener("click", (e) => { const g = e.target.closest("[data-chip]")?.dataset.chip; if (g) setFocus(focus === g ? null : g); });
+  $("cards").addEventListener("pointerover", (e) => { const g = e.target.closest(".game, .notes")?.dataset.game ?? e.target.closest(".notes")?.id.slice(6); if (g) setFocus(g); });
+  $("cards").addEventListener("focusin", (e) => { const g = e.target.closest(".game")?.dataset.game; if (g) setFocus(g); });
+
+  window.SpareCycles = { select: openGame, hub: openHub, load(data) { Object.assign(mem, data); if (!$("hub").hidden) renderHub(); } };
+  renderHub();
+})();
+</script>
+<!-- mcp-bridge -->
+</body>
+</html>

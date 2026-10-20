@@ -1,0 +1,47 @@
+{
+  "name": "spare-cycles",
+  "version": "0.1.0",
+  "description": "Attention-training mini games you can play inside Claude, ChatGPT, Cursor or VS Code while the AI is working (MCP App).",
+  "type": "module",
+  "bin": {
+    "spare-cycles": "server.js"
+  },
+  "files": [
+    "server.js",
+    "games.html",
+    "engine.js",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "start": "node server.js",
+    "stdio": "node server.js --stdio",
+    "test": "node test.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/client": "^2.0.0",
+    "@modelcontextprotocol/ext-apps": "^2.0.3",
+    "@modelcontextprotocol/node": "^2.1.1",
+    "@modelcontextprotocol/server": "^2.3.1",
+    "zod": "^4.2.0"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/frahman2310/spare-cycles.git"
+  },
+  "homepage": "https://github.com/frahman2310/spare-cycles#readme",
+  "keywords": [
+    "mcp",
+    "mcp-app",
+    "claude",
+    "chatgpt",
+    "cursor",
+    "brain-training",
+    "attention",
+    "cognitive-games"
+  ]
+}
