@@ -1,6 +1,17 @@
 # Spare Cycles
 
+[![test](https://github.com/frahman2310/spare-cycles/actions/workflows/test.yml/badge.svg)](https://github.com/frahman2310/spare-cycles/actions/workflows/test.yml)
+
 Three short attention games you can play inside Claude, ChatGPT, Cursor or VS Code while the AI works. They run as an [MCP App](https://github.com/modelcontextprotocol/ext-apps): ask your assistant for "a game while I wait" and they open inline in the chat. Where the host supports it, you can pop them out or open them fullscreen.
+
+![Spare Cycles brain map lab: a brain map with Comet Watch's regions highlighted, next to three games with level meters, score readouts and trends](docs/hub-light.png)
+
+<p>
+  <img src="docs/switchboard-dark.png" alt="Switchboard mid-trial in dark mode: an amber panel asks below or above 5 for the digit 9" width="66%">
+  <img src="docs/hub-phone-dark.png" alt="The lab at phone width in dark mode" width="30%">
+</p>
+
+<sub>Screenshots show example progress data.</sub>
 
 | Game | What you do | What adapts | Research basis |
 |---|---|---|---|
