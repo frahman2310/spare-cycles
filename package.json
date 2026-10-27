@@ -1,6 +1,6 @@
 {
   "name": "spare-cycles",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Attention-training mini games you can play inside Claude, ChatGPT, Cursor or VS Code while the AI is working (MCP App).",
   "type": "module",
   "bin": {
@@ -16,7 +16,8 @@
   "scripts": {
     "start": "node server.js",
     "stdio": "node server.js --stdio",
-    "test": "node test.js"
+    "test": "node test.js",
+    "build": "node scripts/build-page.mjs dist"
   },
   "engines": {
     "node": ">=20"
