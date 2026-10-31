@@ -70,3 +70,13 @@ const loaded = await client.callTool({ name: "spare_cycles_progress", arguments:
 assert.deepEqual(loaded.structuredContent.data, saved);
 await client.close();
 console.log(`ok  MCP: tool + ${Math.round(html.length / 1024)} KB ui:// page`);
+
+// Web build: one self-contained page with the engine inlined and no MCP bridge.
+import { execFileSync } from "node:child_process";
+import { readFileSync } from "node:fs";
+const buildDir = mkdtempSync(join(tmpdir(), "sc-build-"));
+execFileSync(process.execPath, ["scripts/build-page.mjs", buildDir]);
+const web = readFileSync(join(buildDir, "index.html"), "utf8");
+assert.ok(web.includes("blockLevelChange") && !web.includes('src="engine.js"'), "web build inlines the engine");
+assert.ok(!web.includes("McpApps") && web.includes("fonts.googleapis.com"), "web build has fonts and no MCP bridge");
+console.log(`ok  web build: ${Math.round(web.length / 1024)} KB`);

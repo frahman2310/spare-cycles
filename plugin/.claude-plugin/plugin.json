@@ -1,0 +1,10 @@
+{
+  "name": "spare-cycles",
+  "version": "1.1.0",
+  "description": "Attention games beside the chat, one click away, without pausing Claude",
+  "author": {
+    "name": "Faiz Ur Rahman"
+  },
+  "repository": "https://github.com/frahman2310/spare-cycles",
+  "license": "MIT"
+}
