@@ -6,6 +6,8 @@ Three short attention games you can play inside Claude, ChatGPT, Cursor or VS Co
 
 **Play in your browser:** [frahman2310.github.io/spare-cycles](https://frahman2310.github.io/spare-cycles/). Nothing to install; progress stays in your browser.
 
+**In Claude Code:** install the plugin for a side pane in every chat. Click **Spare Cycles** above the prompt, or run `/spare-cycles`, and play while Claude keeps working. Nothing is sent to the model and the session isn't interrupted.
+
 ![Spare Cycles brain map lab: a brain map with Comet Watch's regions highlighted, next to three games with level meters, score readouts and trends](docs/hub-light.png)
 
 <p>
@@ -48,7 +50,21 @@ People reliably improve at what they practise. Evidence that brain games improve
 
 ## Install
 
-You need Node 20+.
+### Side pane in Claude Code
+
+This is the best fit for playing mid-session. At the prompt of a terminal session:
+
+```text
+/plugin install spare-cycles --marketplace frahman2310/spare-cycles
+```
+
+In the desktop app, click **+** next to the prompt box, then **Plugins**, **Add marketplace** with `frahman2310/spare-cycles`, then **Add plugin**. It loads in new sessions.
+
+The pane draws the games in text cells, because a pane can't host a web page. It has the same adaptive rules and levels as the web version, with a coarser exposure floor in Comet Watch (one 33 ms tick). Levels and history are saved across sessions, separately from the web and MCP versions.
+
+### MCP App in Claude Desktop, ChatGPT, Cursor or VS Code
+
+These open in the chat when you ask for them. You need Node 20+.
 
 ```bash
 git clone https://github.com/frahman2310/spare-cycles.git
@@ -88,9 +104,10 @@ Run `npm start`, then open `http://localhost:3001/` to play in a browser.
 | `engine.js` | Adaptive difficulty rules (staircases and the per-run block rule) |
 | `server.js` | MCP server: serves the games as a `ui://` MCP App over stdio or HTTP, and saves progress |
 | `scripts/build-page.mjs` | Builds the single-file web version that GitHub Pages serves (`npm run build`) |
+| `plugin/` | The Claude Code side pane: `hooks/register.tsx` adds the button, command and pane; `hooks/games.ts` is the cell version of the games |
 | `test.js` | Checks the adaptive rules converge where theory predicts, and smoke-tests the MCP server |
 
-`server.js` inlines `engine.js` and the MCP Apps bridge into `games.html`, so hosts receive one self-contained page. Run `npm test` before opening a pull request; CI runs it on Node 20 and 22.
+`server.js` inlines `engine.js` and the MCP Apps bridge into `games.html`, so hosts receive one self-contained page. Run `npm test` before opening a pull request; CI runs it on Node 20 and 22. `npm run test:plugin` (Node 22+) plays each pane game to the end with a simulated player, and `claude plugin test plugin` checks the hooks.
 
 ## Disclaimer
 
