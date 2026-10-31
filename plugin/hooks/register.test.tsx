@@ -17,13 +17,36 @@ test('desktop and terminal draw the games; other surfaces draw the link', async 
   }
 })
 
-test('the command runs mid-turn and opens the pane without the model', async ($, on) => {
-  let opened = 0
+function setup($: any, on: any, mcp: () => unknown) {
+  const calls = { opened: 0, mcp: [] as unknown[] }
   on('command.register', () => ({ value: { command: 'spare-cycles' } }))
-  on('ui.open', () => { opened++; return { value: { isPlaced: true } } })
-  on('session.start', (_, e) => ({ cwd: e.cwd }))
+  on('ui.open', () => { calls.opened++; return { value: { isPlaced: true } } })
+  on('mcp.call', (_: unknown, e: unknown) => { calls.mcp.push(e); return mcp() })
+  on('session.start', (_: unknown, e: { cwd: string }) => ({ cwd: e.cwd }))
+  return calls
+}
+
+test('the command opens the full game in the browser pane, with no text pane', async ($, on) => {
+  const calls = setup($, on, () => ({ value: { content: [], isError: false } }))
   await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
   const out = await $.command.run({ command: 'spare-cycles', args: '' })
-  expect(opened).toBe(1)
+  expect(calls.mcp.length).toBe(1)
+  expect(JSON.stringify(calls.mcp[0])).toMatch(/Claude_Browser.*preview_start.*frahman2310\.github\.io/)
+  expect(calls.opened).toBe(0)
+  expect(out.text).toMatch(/browser pane/)
+})
+
+test('with no browser pane it falls back to the text pane', async ($, on) => {
+  const calls = setup($, on, () => { throw new Error('no such server') })
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+  const out = await $.command.run({ command: 'spare-cycles', args: '' })
+  expect(calls.opened).toBe(1)
   expect(out.text).toMatch(/side pane/)
+})
+
+test('a browser pane that reports an error also falls back', async ($, on) => {
+  const calls = setup($, on, () => ({ value: { content: [], isError: true } }))
+  await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
+  await $.command.run({ command: 'spare-cycles', args: '' })
+  expect(calls.opened).toBe(1)
 })

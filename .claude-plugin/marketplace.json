@@ -1,5 +1,13 @@
 {
   "name": "spare-cycles",
-  "owner": { "name": "Faiz Ur Rahman" },
-  "plugins": [{ "name": "spare-cycles", "source": "./plugin", "description": "Attention games in a side pane you can play mid-session without pausing Claude" }]
+  "owner": {
+    "name": "Faiz Ur Rahman"
+  },
+  "plugins": [
+    {
+      "name": "spare-cycles",
+      "source": "./plugin",
+      "description": "Attention games beside the chat, one click away, without pausing Claude"
+    }
+  ]
 }
